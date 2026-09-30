@@ -21,7 +21,7 @@ const outDir = mkdtempSync(join(tmpdir(), "pi-ask-user-cz-test-"));
 
 try {
 	await build({
-		entryPoints: [join(root, "translate-blocks.test.ts")],
+		entryPoints: [join(root, "test", "translate-blocks.test.ts")],
 		outfile: join(outDir, "translate-blocks.test.mjs"),
 		bundle: true,
 		platform: "node",

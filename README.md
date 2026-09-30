@@ -22,10 +22,42 @@ Two separate things were wrong, and they need two different fixes:
 1. **The chrome could not be Czech.** Upstream localises through `@juicesharp/rpiv-i18n`, whose
    `SUPPORTED_LOCALES` constant gates both the `/languages` picker and which `locales/*.json` files
    are read. It ships nine languages and Czech is not one of them, so dropping a `cs.json` into the
-   package is silently ignored. This fork resolves Czech itself (`state/i18n-bridge.ts`).
+   package is silently ignored. This fork resolves Czech itself (`src/shared/i18n.ts`).
 2. **Asking the model to write Czech is the wrong fix.** It changes model behaviour, it makes the
    tool description and the answer envelope Czech too, and it leaks into every other surface.
    Here the model keeps its English and only the pixels change.
+
+## Layout
+
+Vertical slice architecture, as the `pi-plugin-dev` skill requires it. `src/shared/` is the kernel
+and imports no slice; `src/slices/*` are isolated features that import the kernel and never each
+other. `index.ts` is wiring only — kernel constants, two slice registrations, one shutdown drain.
+
+```
+index.ts                            composition root: subagent guard + wire + drain
+src/shared/
+  contract.ts                       event names/payloads + the tool name both slices agree on
+  config.ts, config-source.ts       ~/.pi/agent/pi-ask-user-cz.json
+  i18n.ts                           Czech string table; t() only, no row knowledge
+src/slices/questionnaire/           the ask_user_question tool — one capability, one slice
+  tool.ts                           registerTool + the English(display)/English(model) split
+  translate.ts, translate-blocks.ts the fork's reason for existing
+  rpc-fallback.ts                   sequential dialog walker for RPC hosts
+  session-factory.ts                TUI overlay wiring
+  params/                           schema, normalisation, validation, answer envelope
+  session/                          state, reducer, key router, row intents, selectors
+  view/                             TUI components
+src/slices/reconcile/               before_agent_start tool-list reconciliation
+```
+
+`view/`, `session/` and `params/` are internal structure, not separate slices: they import each
+other in a cycle (`params/types` → `session/row-intent` → `params/types`, and `session/selectors` ↔
+`view/`). VSA forbids cycles *between* slices; one feature whose internals talk to each other is
+one slice. Splitting them would mean inventing an interface to hide a cycle that only exists
+because they are the same capability.
+
+The tool name lives in the kernel rather than in `questionnaire` precisely because `reconcile`
+needs it too and slices may not import siblings.
 
 ## Install
 
@@ -137,10 +169,11 @@ What is **not** verified, honestly:
 
 Forked from [`@juicesharp/rpiv-ask-user-question`](https://github.com/juicesharp/rpiv-mono) v2.11.0
 by juicesharp, MIT — `LICENSE` is theirs and covers the inherited files unchanged. The fork changes
-(`translate-*.ts`, `config-support.ts`, `session-factory.ts`, `prompt-events.ts`,
-`tool/prompt-copy.ts`, `state/i18n-bridge.ts`, `locales/cs.json`, and the wiring in
-`ask-user-question.ts`) are MIT © mastnacek. Upstream doc comments are preserved where behaviour is
-unchanged, so the diff against v2.11.0 stays readable.
+(`src/slices/questionnaire/translate*.ts`, `src/shared/config-source.ts`,
+`src/slices/questionnaire/session-factory.ts`, `src/slices/questionnaire/prompt-events.ts`,
+`src/slices/questionnaire/params/prompt-copy.ts`, `src/shared/i18n.ts`, `locales/cs.json`, and the
+wiring in `src/slices/questionnaire/tool.ts`) are MIT © mastnacek. Upstream doc comments are
+preserved where behaviour is unchanged, so the diff against v2.11.0 stays readable.
 
 No behavioural changes were made to the questionnaire itself: validation, the marker rows, the
 preview layout, the tab bar, multi-select, notes, the collapse key and the answer envelope are
