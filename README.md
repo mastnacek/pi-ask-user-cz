@@ -114,9 +114,10 @@ Honest list of what is **not** proven, because the RPC harness cannot reach it:
 - **Translation quality is not asserted.** The smoke test checks that nothing Czech comes back, not
   that the Czech is good. A different translator model may legitimately breach the marker contract
   and fall back to English by design.
-- **One resolver path.** The translate plugin is looked up in
-  `~/.pi/agent/git/github.com/mastnacek/pi-prompt-translate-czk` and next to this package. A third
-  layout would need a third candidate.
+- **One resolver path.** The translate plugin is looked up only in its Pi-installed checkout,
+  `~/.pi/agent/git/github.com/mastnacek/pi-prompt-translate-czk`. The development tree next to this
+  package is deliberately *not* a candidate: if the installed checkout went missing, running against
+  unreleased source would be worse than degrading to English.
 - Upstream's own test suite was not ported; only the fork's new logic is covered here.
 
 ## Upstream and licence

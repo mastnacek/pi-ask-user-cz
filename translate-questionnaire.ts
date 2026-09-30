@@ -64,24 +64,19 @@ const PLUGIN_MODULES = [
 ] as const;
 
 /**
- * Where the translate plugin may live. `git:github.com/mastnacek/pi-prompt-translate-czk`
- * resolves to the git checkout under the agent home, which is the copy that is
- * actually loaded; the sibling directory is the development tree it was published
- * from. Both are probed with `.ts` and `.js` specifiers because Pi's jiti loader maps
- * the `.js` specifiers the plugin's own internal imports use onto its `.ts` files.
+ * Where the translate plugin is looked up: its Pi-installed git checkout.
+ *
+ * One candidate on purpose. An earlier version also probed the development tree next to
+ * this package, which is a footgun rather than a convenience — if the installed checkout
+ * ever went missing, the fork would silently run against unreleased source instead of
+ * degrading to English. Developing this fork against the *installed* translate plugin is
+ * also the more useful default: it is the version that will actually be running.
  */
 function candidateRoots(): string[] {
-	const roots = [join(homedir(), ".pi", "agent", "git", "github.com", "mastnacek", "pi-prompt-translate-czk")];
-	try {
-		// ../pi-ask-user-cz -> ../pi-prompt-translate-czk
-		roots.push(new URL("../../pi-prompt-translate-czk", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1"));
-	} catch {
-		// No resolvable sibling (installed as a package): the agent-home root stands alone.
-	}
-	return roots;
+	return [join(homedir(), ".pi", "agent", "git", "github.com", "mastnacek", "pi-prompt-translate-czk")];
 }
 
-/** The files this fork imports, relative to a plugin root (extension-less, as on disk). */
+/** Extension-less module paths this fork imports from the translate plugin's root. */
 export const PLUGIN_ENTRY_FILES = PLUGIN_MODULES.map((m) => m.suffix);
 
 /**
