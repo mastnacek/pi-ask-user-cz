@@ -16,7 +16,7 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { registerAskUserQuestion } from "./src/slices/questionnaire/index.js";
+import { registerAskUserQuestion, startSessionGraphPrewarm } from "./src/slices/questionnaire/index.js";
 import { registerAskUserQuestionReconciler } from "./src/slices/reconcile/index.js";
 
 export {
@@ -39,12 +39,26 @@ export default function (pi: ExtensionAPI) {
 
 	// Wire order: tools, then lifecycle reconciliation, then the drain. Each
 	// registration returns its own unsubscriber.
-	const dispose = [registerAskUserQuestion(pi), registerAskUserQuestionReconciler(pi)];
+	const dispose: (() => void)[] = [registerAskUserQuestion(pi), registerAskUserQuestionReconciler(pi)];
+
+	// The lazy render graph is warmed from `session_start`, never from the factory:
+	// some invocations load extensions without starting a session, and a timer made
+	// there would outlive the load it was warming for. The canceller joins the same
+	// drain as the subscriptions, so one handler clears all of it.
+	let cancelPrewarm: (() => void) | undefined;
+	dispose.push(
+		pi.on("session_start", () => {
+			cancelPrewarm?.();
+			cancelPrewarm = startSessionGraphPrewarm();
+		}),
+	);
 
 	// `session_shutdown` is itself the drainer, so it is deliberately not stored.
 	// Quit, reload, session replacement and exit all converge here; `splice` keeps
 	// it idempotent across those.
 	pi.on("session_shutdown", () => {
+		cancelPrewarm?.();
+		cancelPrewarm = undefined;
 		for (const off of dispose.splice(0)) off();
 	});
 }

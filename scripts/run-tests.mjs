@@ -9,30 +9,45 @@
  * uses internally, which Node's type stripping does not do on its own.
  */
 
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const outDir = mkdtempSync(join(tmpdir(), "pi-ask-user-cz-test-"));
 
+// Discovered, not listed: a new test/*.test.ts is picked up by `npm test` without
+// anyone editing this file, which is the only way the suite keeps covering the
+// files it is supposed to.
+const testDir = join(root, "test");
+const entries = readdirSync(testDir)
+	.filter((f) => f.endsWith(".test.ts"))
+	.sort()
+	.map((f) => join(testDir, f));
+
+if (entries.length === 0) throw new Error(`no *.test.ts found in ${testDir}`);
+
 try {
-	await build({
-		entryPoints: [join(root, "test", "translate-blocks.test.ts")],
-		outfile: join(outDir, "translate-blocks.test.mjs"),
-		bundle: true,
-		platform: "node",
-		format: "esm",
-		target: "node22",
-		// node: builtins only; anything else would be a real missing dependency.
-		external: ["node:*", "@earendil-works/*"],
-		logLevel: "warning",
-	});
-	const bundle = join(outDir, "translate-blocks.test.mjs");
-	const result = spawnSync(process.execPath, ["--test", bundle], { stdio: "inherit" });
+	const outfiles = [];
+	for (const [i, entry] of entries.entries()) {
+		const outfile = join(outDir, `${i}-${basename(entry).replace(/\.ts$/, ".mjs")}`);
+		outfiles.push(outfile);
+		await build({
+			entryPoints: [entry],
+			outfile,
+			bundle: true,
+			platform: "node",
+			format: "esm",
+			target: "node22",
+			// node: builtins only; anything else would be a real missing dependency.
+			external: ["node:*", "@earidil-works/*"],
+			logLevel: "warning",
+		});
+	}
+	const result = spawnSync(process.execPath, ["--test", ...outfiles], { stdio: "inherit" });
 	process.exit(result.status ?? 1);
 } finally {
 	rmSync(outDir, { recursive: true, force: true });

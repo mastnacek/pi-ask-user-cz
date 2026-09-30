@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { t } from "../../../shared/i18n.js";
 
 export interface ExternalEditorTui {
 	stop(): void;
@@ -35,6 +36,12 @@ function runEditor(command: string, file: string): Promise<void> {
 /**
  * Edit a custom answer with Pi's configured external-editor command. The TUI lifecycle
  * and one-trailing-newline normalization intentionally match Pi's main editor flow.
+ *
+ * Both lines the user reads go through the string table. They used to be inline
+ * English literals, which meant a Czech operator pressing Ctrl+G got an English
+ * message in the middle of an otherwise Czech dialog — the one surface the
+ * multilingual-ui auditor cannot see, because it only inspects notify/select/
+ * confirm/setStatus, not a raw stdout write.
  */
 export async function editWithExternalEditor(tui: ExternalEditorTui, command: string, value: string): Promise<string> {
 	const tempDir = mkdtempSync(join(tmpdir(), "rpiv-ask-user-question-"));
@@ -45,7 +52,12 @@ export async function editWithExternalEditor(tui: ExternalEditorTui, command: st
 		writeFileSync(tempFile, value, "utf8");
 		tui.stop();
 		tuiStopped = true;
-		process.stdout.write(`Launching external editor: ${command}\nPi will resume when the editor exits.\n`);
+		process.stdout.write(
+			`${t("editor.launching", "Launching external editor: {command}")}\n${t("editor.waiting", "Pi will resume when the editor exits.")}\n`.replace(
+				"{command}",
+				command,
+			),
+		);
 		await runEditor(command, tempFile);
 		return readFileSync(tempFile, "utf8").replace(/\r?\n$/, "");
 	} finally {

@@ -28,6 +28,8 @@
   "notes.global_header": "Celková poznámka:",
 
   "editor.failed": "Externí editor selhal",
+  "editor.launching": "Spouštím externí editor: {command}",
+  "editor.waiting": "Pi bude pokračovat, jakmile editor skončí.",
 
   "rpc.multi_instructions": "Zadejte čísla všech použitelných možností oddělená čárkou (např. \"1,3\"), nebo napište vlastní odpověď.",
   "rpc.custom_answer_title": "Napište svou odpověď:"

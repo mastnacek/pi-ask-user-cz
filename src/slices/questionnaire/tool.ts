@@ -58,7 +58,8 @@ import { translateParams } from "./translate.js";
 import type { WrappingSelectItem } from "./view/components/wrapping-select.js";
 
 function rejectWithoutUi() {
-	return buildToolResult(ERROR_NO_UI, { answers: [], cancelled: true, error: "no_ui" });
+	const details: QuestionnaireResult = { answers: [], cancelled: true, error: "no_ui" };
+	return buildToolResult(ERROR_NO_UI, details, true);
 }
 
 /** Sequential native-dialog walker for RPC hosts; brackets it with the blocked-event pair + terminal bell. */
@@ -146,7 +147,8 @@ async function resolveUndefinedResult(ctx: ExtensionContext, typed: QuestionPara
 	if (hasDialogUI(ctx.ui)) {
 		return buildQuestionnaireResponse(await runRpcQuestionnaire(ctx.ui, typed), typed);
 	}
-	return buildToolResult(ERROR_NO_CUSTOM_UI, { answers: [], cancelled: true, error: "no_custom_ui" });
+	const details: QuestionnaireResult = { answers: [], cancelled: true, error: "no_custom_ui" };
+	return buildToolResult(ERROR_NO_CUSTOM_UI, details, true);
 }
 
 /**
@@ -158,10 +160,17 @@ async function resolveUndefinedResult(ctx: ExtensionContext, typed: QuestionPara
  * re-imports and surfaces it through loadQuestionnaireSession's structured
  * envelope. unref keeps the timer from holding a non-TUI embedder's process
  * open.
+ *
+ * Started from `session_start`, never from the extension factory: some
+ * invocations load extensions without ever starting a session, and a timer
+ * created there would outlive the load it was warming for. The composition root
+ * owns the subscription and calls the returned canceller on `session_shutdown`,
+ * so quit, reload and session replacement all converge on clearing it.
  */
-function prewarmSessionGraph(): void {
+export function startSessionGraphPrewarm(): () => void {
 	const timer = setTimeout(() => void loadQuestionnaireSession().catch(() => undefined), PREWARM_DELAY_MS);
 	timer.unref?.();
+	return () => clearTimeout(timer);
 }
 
 export function buildItemsForQuestion(question: QuestionData): WrappingSelectItem[] {
@@ -195,11 +204,12 @@ export function registerAskUserQuestion(pi: ExtensionAPI): () => void {
 
 			const validation = validateQuestionnaire(typed);
 			if (!validation.ok) {
-				return buildToolResult(validation.message, {
+				const details: QuestionnaireResult = {
 					answers: [],
 					cancelled: true,
 					error: validation.error,
-				});
+				};
+				return buildToolResult(validation.message, details, true);
 			}
 
 			// The fork's one job: the dialog renders Czech, the model keeps English.
@@ -216,14 +226,19 @@ export function registerAskUserQuestion(pi: ExtensionAPI): () => void {
 			// params, because the listener's job is to tell the user what is being asked.
 			emitAskUserPromptEvent(pi, display);
 
-			// RPC hosts (VSCode pendant, ACP clients like Zed/Paseo — issue #78):
-			// ui.custom() cannot render there, but the select/input dialog
-			// sub-protocol works. Hosts that advertise ctx.mode (pi ≥0.79) route to
-			// the sequential dialog walker up front, skipping the TUI render-graph
-			// import entirely; RPC builds that predate ctx.mode are caught by the
-			// custom()-resolved-undefined backstop below. See ./rpc-fallback.ts.
-			if ((ctx as { mode?: string }).mode === "rpc" && hasDialogUI(ctx.ui)) {
-				return buildQuestionnaireResponse(restore(await runRpcPath(pi, ctx.ui, display)), typed);
+			// Terminal-only rendering is gated on ctx.mode, not ctx.hasUI: hasUI is true in
+			// RPC too, where `ui.custom()` resolves undefined and `onTerminalInput` is a
+			// no-op. Deciding here — before the render graph is touched — means a host that
+			// cannot render never pays the ~560ms QuestionnaireSession import only to
+			// discover custom() gave it nothing. RPC builds that predate ctx.mode report
+			// no mode at all and are treated as TUI, which is the pre-0.79 behaviour, and
+			// are still caught by the custom()-undefined backstop below.
+			const mode = (ctx as { mode?: string }).mode;
+			const canRenderOverlay = mode === undefined || mode === "tui";
+			if (!canRenderOverlay) {
+				return hasDialogUI(ctx.ui)
+					? buildQuestionnaireResponse(restore(await runRpcPath(pi, ctx.ui, display)), typed)
+					: buildToolResult(ERROR_NO_CUSTOM_UI, { answers: [], cancelled: true, error: "no_custom_ui" }, true);
 			}
 
 			const itemsByTab: WrappingSelectItem[][] = display.questions.map((q) => buildItemsForQuestion(q));
@@ -232,7 +247,8 @@ export function registerAskUserQuestion(pi: ExtensionAPI): () => void {
 			// load it only when the tool runs, not at extension registration.
 			const sessionLoad = await loadQuestionnaireSession();
 			if (!sessionLoad.ok) {
-				return buildToolResult(sessionLoad.message, { answers: [], cancelled: true, error: sessionLoad.error });
+				const details: QuestionnaireResult = { answers: [], cancelled: true, error: sessionLoad.error };
+				return buildToolResult(sessionLoad.message, details, true);
 			}
 			const { QuestionnaireSession } = sessionLoad.module;
 			// Resolve the collapse/expand key spec from config. Default is `ctrl+]`; users
@@ -293,9 +309,10 @@ export function registerAskUserQuestion(pi: ExtensionAPI): () => void {
 		},
 	});
 
-	prewarmSessionGraph();
 	// No `pi.on` subscription of its own, so nothing to hand back beyond the
 	// no-op: the signature is uniform so the composition root can drain blindly.
+	// The pre-warm timer deliberately does NOT start here — see
+	// startSessionGraphPrewarm and the session_start wiring in the root.
 	return () => {};
 }
 

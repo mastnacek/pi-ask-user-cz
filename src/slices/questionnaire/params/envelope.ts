@@ -50,9 +50,23 @@ export function buildAnswerSegment(a: QuestionAnswer): string {
 	return `${parts.join(". ")}.`;
 }
 
-export function buildToolResult(text: string, details: QuestionnaireResult) {
+/**
+ * Build the LLM-facing tool result.
+ *
+ * `isError` is the whole point of the third parameter. The engine treats a returned
+ * object WITHOUT `isError: true` as a success no matter what `content` or `details`
+ * say (tools-and-schema.md), so every failure path used to reach the model as a
+ * completed questionnaire — a validation rejection was indistinguishable from the
+ * user declining. `details` still rides along, which is the reason to return rather
+ * than throw: the UI and programmatic callers keep the structured reason.
+ *
+ * Only genuine failures pass `true`. A decline is a successful outcome of a
+ * successful question, so DECLINE_MESSAGE stays a success.
+ */
+export function buildToolResult(text: string, details: QuestionnaireResult, isError = false) {
 	return {
 		content: [{ type: "text" as const, text }],
 		details,
+		...(isError ? { isError: true as const } : {}),
 	};
 }

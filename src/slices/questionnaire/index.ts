@@ -27,4 +27,4 @@ export {
 	type AskUserPromptOption,
 	type AskUserPromptQuestion,
 } from "../../shared/contract.js";
-export { BEL, buildItemsForQuestion, loadQuestionnaireSession, PREWARM_DELAY_MS } from "./tool.js";
+export { BEL, buildItemsForQuestion, loadQuestionnaireSession, PREWARM_DELAY_MS, startSessionGraphPrewarm } from "./tool.js";

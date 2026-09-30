@@ -26,6 +26,20 @@ export type SessionRef = { current: import("./session/questionnaire.js").Questio
 export type OverlayHandleRef = { current: OverlayHandle | undefined };
 
 /**
+ * True only for a host that can actually render the terminal-only UI.
+ *
+ * `ctx.hasUI` is NOT that test: it is true in RPC too, where `ui.custom()` resolves
+ * undefined and `onTerminalInput` is a no-op. `ctx.mode` is the real signal, and an
+ * ABSENT mode is treated as TUI — Pi only started advertising it in 0.79, and before
+ * that TUI was the only host with an overlay path, so assuming TUI preserves the
+ * pre-0.79 behaviour instead of silently disabling the dialog on an older engine.
+ */
+export function isTerminalHost(ctx: ExtensionContext): boolean {
+	const mode = (ctx as { mode?: string }).mode;
+	return mode === undefined || mode === "tui";
+}
+
+/**
  * Register the raw terminal listener that toggles collapse while the overlay is hidden.
  * Returns the remover, or undefined when the key is off / the host has no raw input hook —
  * callers derive `canReopenWhileHidden` from this.
@@ -36,6 +50,9 @@ export function registerCollapseKeyListener(
 	sessionRef: SessionRef,
 	overlayHandleRef: OverlayHandleRef,
 ): (() => void) | undefined {
+	// onTerminalInput is a TUI-only primitive; on any other host there is no listener to
+	// add, so asking for one would leave a subscription nothing can ever fire or remove.
+	if (!isTerminalHost(ctx)) return undefined;
 	if (collapseKey === COLLAPSE_KEY_OFF || typeof ctx.ui.onTerminalInput !== "function") return undefined;
 	let hasAnnouncedHide = false;
 	return ctx.ui.onTerminalInput((data) => {
