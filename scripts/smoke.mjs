@@ -19,7 +19,11 @@
  * `node_modules` above it. Run this from the dev tree (`npm test`), where the
  * workspace hoists the engine and every check runs.
  *
- * Run: `node scripts/smoke.mjs`
+ * Run from the dev tree: `node scripts/smoke.mjs` (or `npm test`). This cannot run
+ * from a bare `~/.pi/agent/git/...` checkout: `index.ts` statically imports the
+ * tool, which imports pi-tui values, so a process without the peers dies on the
+ * first load. That is a host condition — Pi supplies them at runtime — and it is
+ * why the installed package is verified by Pi loading it, not by this script.
  */
 
 import { dirname, join } from "node:path";
@@ -156,31 +160,27 @@ check(
 	"session/questionnaire.ts must be reached only via await import()",
 );
 
-// 7. The two lazy edges, resolved for real. They sit behind `await import()` and
-//    their failures are swallowed into an LLM-facing envelope, so a moved
-//    specifier here would pass every check above and fail at question time.
-const toolModule = await load("src", "slices", "questionnaire", "tool.ts");
-const graph = await toolModule.loadQuestionnaireSession();
+// 7. The peer-dependent graph, resolved for real. Behind `await import()` in
+//    production, and its failure would be swallowed into an LLM-facing envelope —
+//    so a moved specifier here would pass every check above and fail at question
+//    time, which is the whole reason this check exists.
+try {
+		const toolModule = await load("src", "slices", "questionnaire", "tool.ts");
+		const graph = await toolModule.loadQuestionnaireSession();
 
-// A missing *peer* is a host condition: Pi supplies @earidil-works/* and typebox
-// from its own installation, and a bare `node` process outside Pi may resolve them
-// or not (this workspace's pi-tui even ships an empty `exports` array, which the
-// strict CJS resolver rejects while jiti's own resolver loads it — so no
-// require.resolve probe can answer this). A missing *relative* path, by contrast,
-// is always this package's bug, which is the entire point of the check.
-const MISSING_PEER = /Cannot find module ['"](@earidil-works\/[^'"]+|typebox)['"]/;
-
-if (graph.ok) {
-	check("render graph exports QuestionnaireSession", typeof graph.module.QuestionnaireSession === "function");
-	const editor = await load("src", "slices", "questionnaire", "session", "external-editor.ts");
-	check("lazy external-editor module resolves", typeof editor.editWithExternalEditor === "function");
-} else {
-	const peer = String(graph.message).match(MISSING_PEER);
-	if (peer) {
-		skip("lazy render graph + external editor", `peer ${peer[1]} is not resolvable in this process; Pi supplies it at runtime`);
-	} else {
-		check("lazy render graph resolves", false, `${graph.error}: ${graph.message}`);
-	}
+		if (graph.ok) {
+			check("render graph exports QuestionnaireSession", typeof graph.module.QuestionnaireSession === "function");
+			const editor = await load("src", "slices", "questionnaire", "session", "external-editor.ts");
+			check("lazy external-editor module resolves", typeof editor.editWithExternalEditor === "function");
+		} else {
+			const peer = String(graph.message).match(MISSING_PEER);
+			if (peer) skip("lazy render graph", `peer ${peer[1]} is not resolvable; Pi supplies it at runtime`);
+			else check("lazy render graph resolves", false, `${graph.error}: ${graph.message}`);
+		}
+	} catch (error) {
+		const peer = String(error?.message ?? error).match(MISSING_PEER);
+		if (peer) skip("peer-dependent render graph", `peer ${peer[1]} is not resolvable; Pi supplies it at runtime`);
+		else check("tool module loads", false, String(error?.message ?? error));
 }
 
 const summary = failed === 0 ? `all checks passed${skipped ? ` (${skipped} skipped)` : ""}` : `${failed} check(s) FAILED`;
