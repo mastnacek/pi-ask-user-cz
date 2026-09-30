@@ -2,6 +2,7 @@ import type { Theme } from "@earendil-works/pi-coding-agent";
 import type { MarkdownTheme } from "@earendil-works/pi-tui";
 import { t } from "../../../../../shared/i18n.js";
 import type { QuestionData } from "../../../params/types.js";
+import { parseOptionLabel } from "../format-option.js";
 import {
 	MAX_PREVIEW_HEIGHT_SIDE_BY_SIDE,
 	MAX_PREVIEW_HEIGHT_STACKED,
@@ -52,10 +53,12 @@ export interface PreviewBlockRendererConfig {
  */
 export class PreviewBlockRenderer {
 	private readonly theme: Theme;
+	private readonly question: QuestionData;
 	private readonly cache: MarkdownContentCache;
 
 	constructor(config: PreviewBlockRendererConfig) {
 		this.theme = config.theme;
+		this.question = config.question;
 		this.cache = new MarkdownContentCache(config.question, config.theme, config.markdownTheme);
 	}
 
@@ -107,7 +110,14 @@ export class PreviewBlockRenderer {
 
 		const { boxWidth } = computeBoxDimensions(contentLines, maxInnerWidth);
 		const colorFn = (s: string) => this.theme.fg("accent", s);
-		const boxedLines = renderBorderedBox(contentLines, boxWidth, colorFn, hidden);
+
+		const opt = this.question.options[optionIndex];
+		let boxTitle = t("preview.title", "Náhled");
+		if (opt) {
+			const { cleanLabel, isRecommended } = parseOptionLabel(opt.label);
+			boxTitle += `: ${cleanLabel}${isRecommended ? " ★" : ""}`;
+		}
+		const boxedLines = renderBorderedBox(contentLines, boxWidth, colorFn, hidden, boxTitle);
 
 		const showAffordance = focused && !notesVisible && this.cache.has(optionIndex);
 		const affordance = showAffordance

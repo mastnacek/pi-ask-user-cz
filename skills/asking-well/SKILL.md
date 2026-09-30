@@ -42,7 +42,42 @@ Every option must represent a decidable choice with distinct consequences.
 
 - **Use for artifacts:** Code snippets, config files, ASCII diagrams, CLI syntax comparisons.
 - **Omit for pure preferences:** Simple decisions ("Yes/No", license selection) do not need previews; labels and descriptions suffice.
-- **Format:** Monospace markdown blocks with clear syntax highlighting fences. Previews work on single-select questions only.
+- **Width budget:** Keep diagram and code lines within **40–60 characters**. Content wider than the preview column wraps or clips in side-by-side view.
+- **Unicode box-drawing standard:** Avoid crude `+---+` / `|   |`. Always use standard box-drawing characters:
+  - Corners: `┌ ┐ └ ┘`
+  - Edges: `│ ─`
+  - Junctions: `├ ┤ ┬ ┴ ┼`
+  - Pointers: `► ▲ ▼`
+
+### Diagram Templates
+
+#### A. Architecture & Data Flow
+```text
+┌──────────────┐       HTTP        ┌──────────────┐
+│    Client    ├──────────────────►│   Gateway    │
+└──────────────┘                   └──────┬───────┘
+                                          ▼
+                                   ┌──────────────┐
+                                   │   Database   │
+                                   └──────────────┘
+```
+
+#### B. UI & Component Wireframe
+```text
+┌─ Dashboard ─────────────────────────┐
+│ [Overview]   [Settings]             │
+│ ─────────────────────────────────── │
+│ ❯ Active service           Online   │
+│   Worker pool              Idle     │
+└─────────────────────────────────────┘
+```
+
+#### C. Code / Config Comparison
+Use fenced language blocks (`ts`, `json`, `diff`):
+```diff
+- config.legacyPolling = true
++ config.useWebSockets = true
+```
 
 ## 5. Session Memory
 

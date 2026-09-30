@@ -38,11 +38,22 @@ export function renderBorderedBox(
 	width: number,
 	colorFn: (s: string) => string,
 	hidden = 0,
+	title?: string,
 ): string[] {
 	const dashSpan = Math.max(1, width - BORDER_HORIZONTAL_OVERHEAD);
 	const contentInner = Math.max(1, dashSpan - 2 * BORDER_INNER_PADDING_HORIZONTAL);
 	const pad = " ".repeat(BORDER_INNER_PADDING_HORIZONTAL);
-	const top = colorFn(`┌${"─".repeat(dashSpan)}┐`);
+
+	let top: string;
+	if (title && dashSpan >= 8) {
+		const cleanTitle = truncateToWidth(title, dashSpan - 4, "…");
+		const titleW = visibleWidth(cleanTitle);
+		const rem = Math.max(0, dashSpan - titleW - 3);
+		top = colorFn("┌─ ") + cleanTitle + colorFn(` ${"─".repeat(rem)}┐`);
+	} else {
+		top = colorFn(`┌${"─".repeat(dashSpan)}┐`);
+	}
+
 	const out: string[] = [top];
 	for (const line of lines) {
 		const padded = truncateToWidth(line, contentInner, "", true);
