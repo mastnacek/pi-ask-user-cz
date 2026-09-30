@@ -14,7 +14,8 @@
 	},
 	"license": "MIT",
 	"scripts": {
-		"test": "node scripts/run-tests.mjs"
+		"typecheck": "tsc --noEmit",
+		"test": "npm run typecheck && node scripts/run-tests.mjs"
 	},
 	"files": [
 		"ask-user-question.ts",
