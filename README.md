@@ -102,22 +102,35 @@ three records that matter: the arguments the model wrote (English), the options 
 
 ## Known limitations
 
-Honest list of what is **not** proven, because the RPC harness cannot reach it:
+What is **verified**, and how:
 
-- **The TUI overlay path is unverified.** In RPC mode `ctx.ui.custom()` returns `undefined`, so the
-  run takes the `rpc-fallback` `ui.select` path. The Czech strings are the same object the overlay
-  would render, but `QuestionnaireSession` and its ~5.4k-line render graph never executed under
-  test. This is the surface a human actually looks at.
-- **Multi-select, custom free text, notes, cancellation, previews and multi-question tab bars were
-  not exercised** — only single-select with two options. The `selected[]` restore, the header
-  width fallback and the preview pass-through are covered by unit tests only.
+| Path | Evidence |
+| --- | --- |
+| Chrome in Czech (live TUI) | Dialog rendered `Napište vlastní.`, Czech title, Czech option labels. |
+| Content translated (live TUI + RPC) | Question, header, labels and descriptions arrive in Czech; a real `translate(..., "tool")` call, marker contract honoured. |
+| Answer restore (live TUI, multi-select) | Clicking a Czech option returned the exact English label: `"What should happen to the cim-budu extension, which is disabled right now?"="Leave it disabled"`. |
+| Answer restore (RPC, single-select) | `"Which Python web framework should we use?"="Django"`. |
+| Failures degrade loudly | A skipped translation raises one `warning` naming the reason; it never fails silently and never renders half-translated. |
+| Pure logic | 9 assertions: marker round-trip, preview pass-through, header width fallback, user's own text untouched, unknown label passed through, cancelled result, marker breach rejected wholesale. |
+
+What is **not** verified, honestly:
+
+- **The custom free-text row, per-question notes, the global note and Esc-cancellation were never
+  exercised in the TUI.** The code paths are upstream's and the unit tests cover the restore, but no
+  run has actually typed into them.
+- **The preview pane has never rendered.** The unit test proves `preview` is left byte-identical, not
+  that a preview pane draws correctly next to a Czech option list. Note previews are single-select
+  only, and both live tests so far were either single-select without a preview or multi-select.
+- **Multi-question dialogs, the tab bar and the Submit tab have never rendered** — every live test
+  was a single question.
+- **The header-width fallback never triggered live** (headers were `Framework` and `cim-budu`, both
+  inside the 16-character chip). Only the unit test covers it.
 - **Translation quality is not asserted.** The smoke test checks that nothing Czech comes back, not
   that the Czech is good. A different translator model may legitimately breach the marker contract
   and fall back to English by design.
-- **One resolver path.** The translate plugin is looked up only in its Pi-installed checkout,
-  `~/.pi/agent/git/github.com/mastnacek/pi-prompt-translate-czk`. The development tree next to this
-  package is deliberately *not* a candidate: if the installed checkout went missing, running against
-  unreleased source would be worse than degrading to English.
+- **Only one agent model and one translator model** were used
+  (`openrouter/google/gemini-3.5-flash-lite` for both, plus `gemini-3.5-flash-lite` in one earlier
+  run).
 - Upstream's own test suite was not ported; only the fork's new logic is covered here.
 
 ## Upstream and licence
