@@ -167,6 +167,8 @@ class QuestionnaireBuilder {
 			selectedText: (s) => t.fg("accent", t.bold(s)),
 			description: (s) => t.fg("muted", s),
 			scrollInfo: (s) => t.fg("dim", s),
+			codeText: (s, active) => (active ? t.fg("mdCode", t.bold(s)) : t.fg("mdCode", s)),
+			recommendedBadge: (s) => t.fg("success", t.bold(s)),
 		};
 	}
 

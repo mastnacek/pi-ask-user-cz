@@ -78,13 +78,13 @@ async function runRpcPath(pi: ExtensionAPI, ui: DialogUI, typed: QuestionParams)
 const ERROR_NO_UI = "Error: UI not available (running in non-interactive mode)";
 
 const ERROR_NO_CUSTOM_UI =
-	"Error: this client cannot render the questionnaire (custom UI is unavailable, e.g. RPC/ACP hosts such as Zed or Paseo). The user never saw the questions — do NOT treat this as a decline. Ask the questions as plain chat text instead, without using this tool.";
+	"Error: this client cannot render the questionnaire (custom UI is unavailable, e.g. RPC/ACP hosts such as Zed or Paseo). The user never saw the questions. Answer their current turn in plain chat text and carry the open questions forward as text.";
 
 const ERROR_SESSION_LOAD_FAILED =
-	"Error: the questionnaire UI failed to load — the host's installed dependencies were likely replaced or removed on disk while Pi was running (e.g. a package-manager install touched the store). The user never saw the questions — do NOT treat this as a decline. Ask the questions as plain chat text instead, and tell the user that restoring this tool requires repairing the install if needed and restarting Pi.";
+	"Error: the questionnaire UI failed to load — the host's installed dependencies were likely replaced or removed on disk while Pi was running (e.g. a package-manager install touched the store). The user never saw the questions. Answer their current turn in plain chat text; tell the user this tool needs its install repaired and Pi restarted to work again.";
 
 const ERROR_STALE_MODULE_CACHE =
-	"Error: the questionnaire UI cannot load — the host's module cache went stale after an earlier failed load (typically dependencies replaced on disk mid-session). This is unrecoverable within the current Pi process. The user never saw the questions — do NOT treat this as a decline. Ask the questions as plain chat text instead, and tell the user to restart Pi to restore this tool.";
+	"Error: the questionnaire UI cannot load — the host's module cache went stale after an earlier failed load (typically dependencies replaced on disk mid-session). This is unrecoverable within the current Pi process, so the user never saw the questions. Answer their current turn in plain chat text; tell the user to restart Pi to restore this tool.";
 
 /** Standard terminal bell — same byte rpiv-warp exports as OSC_TERMINATOR. */
 export const BEL = "\x07";

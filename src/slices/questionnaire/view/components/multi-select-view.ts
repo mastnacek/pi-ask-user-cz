@@ -4,6 +4,7 @@ import { displayLabel } from "../../session/row-intent.js";
 import type { QuestionData } from "../../params/types.js";
 import type { StatefulView } from "../stateful-view.js";
 import { renderInlineInputRow } from "./inline-input.js";
+import { formatInlineCode, parseOptionLabel } from "./format-option.js";
 
 const ACTIVE_POINTER = "❯ ";
 const INACTIVE_POINTER = "  ";
@@ -124,15 +125,29 @@ export class MultiSelectView implements StatefulView<MultiSelectViewProps> {
 			const pointer = row.active ? this.theme.fg("accent", ACTIVE_POINTER) : INACTIVE_POINTER;
 			// Checked and active rows share the accent hue, matching the dialog's selection rhythm.
 			const box = row.checked ? this.theme.fg("accent", CHECKED) : this.theme.fg("muted", UNCHECKED);
-			const label = truncateToWidth(opt.label, contentWidth, "…");
-			const styledLabel = row.active ? this.theme.fg("accent", this.theme.bold(label)) : label;
+
+			const { cleanLabel, isRecommended, badgeText } = parseOptionLabel(opt.label);
+			const proseStyle = row.active ? (s: string) => this.theme.fg("accent", this.theme.bold(s)) : (s: string) => s;
+			const codeStyle = (c: string) =>
+				row.active ? this.theme.fg("mdCode", this.theme.bold(c)) : this.theme.fg("mdCode", c);
+			const badgeStyle = (b: string) => this.theme.fg("success", this.theme.bold(b));
+
+			let formattedLabel = formatInlineCode(cleanLabel, proseStyle, codeStyle);
+			if (isRecommended && badgeText) {
+				formattedLabel += `  ${badgeStyle(badgeText)}`;
+			}
+			const truncatedLabel = truncateToWidth(formattedLabel, contentWidth, "…");
+
 			const number = String(i + 1).padStart(numberWidth, " ");
 			build.lines.push(
-				truncateToWidth(`${pointer}${number}${NUMBER_SEPARATOR}${box}${BOX_LABEL_GAP}${styledLabel}`, width, ""),
+				truncateToWidth(`${pointer}${number}${NUMBER_SEPARATOR}${box}${BOX_LABEL_GAP}${truncatedLabel}`, width, ""),
 			);
 			if (opt.description) {
-				for (const segment of wrapTextWithAnsi(opt.description, contentWidth)) {
-					build.lines.push(CONTINUATION_INDENT + this.theme.fg("muted", segment));
+				const descProse = (s: string) => this.theme.fg("muted", s);
+				const descCode = (c: string) => this.theme.fg("mdCode", c);
+				const formattedDesc = formatInlineCode(opt.description, descProse, descCode);
+				for (const segment of wrapTextWithAnsi(formattedDesc, contentWidth)) {
+					build.lines.push(CONTINUATION_INDENT + segment);
 				}
 			}
 			if (row.active) build.focusedRange = [start, build.lines.length];

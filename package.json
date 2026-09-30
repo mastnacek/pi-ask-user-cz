@@ -21,6 +21,7 @@
 	"files": [
 		"index.ts",
 		"locales/cs.json",
+		"skills/asking-well/SKILL.md",
 		"src/shared/config-source.ts",
 		"src/shared/config.ts",
 		"src/shared/contract.ts",
@@ -49,6 +50,7 @@
 		"src/slices/questionnaire/translate-blocks.ts",
 		"src/slices/questionnaire/translate.ts",
 		"src/slices/questionnaire/view/component-binding.ts",
+		"src/slices/questionnaire/view/components/format-option.ts",
 		"src/slices/questionnaire/view/components/inline-input.ts",
 		"src/slices/questionnaire/view/components/multi-select-view.ts",
 		"src/slices/questionnaire/view/components/option-list-view.ts",
@@ -70,6 +72,9 @@
 	"pi": {
 		"extensions": [
 			"./index.ts"
+		],
+		"skills": [
+			"./skills"
 		]
 	},
 	"peerDependencies": {

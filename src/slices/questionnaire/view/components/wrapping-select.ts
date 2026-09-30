@@ -1,6 +1,7 @@
 import type { Component } from "@earendil-works/pi-tui";
 import { visibleWidth, wrapTextWithAnsi } from "@earendil-works/pi-tui";
 import { renderInlineInputRow } from "./inline-input.js";
+import { formatInlineCode, parseOptionLabel } from "./format-option.js";
 
 /**
  * Row-intent discriminated union. `kind` is the single discriminator —
@@ -25,6 +26,8 @@ export interface WrappingSelectTheme {
 	selectedText: (text: string) => string;
 	description: (text: string) => string;
 	scrollInfo: (text: string) => string;
+	codeText?: (text: string, isActive: boolean) => string;
+	recommendedBadge?: (text: string) => string;
 }
 
 /**
@@ -220,7 +223,7 @@ export class WrappingSelect implements Component {
 		const applySelectedStyle = isActive || isConfirmed;
 
 		return [
-			...this.renderLabelBlock(label, rowPrefix, continuationPrefix, contentWidth, applySelectedStyle),
+			...this.renderLabelBlock(label, rowPrefix, continuationPrefix, contentWidth, applySelectedStyle, item.kind === "option"),
 			...this.renderDescriptionBlock(item.description, continuationPrefix, contentWidth),
 		];
 	}
@@ -276,12 +279,43 @@ export class WrappingSelect implements Component {
 		continuationPrefix: string,
 		contentWidth: number,
 		applySelectedStyle: boolean,
+		isOptionItem = true,
 	): string[] {
-		const wrapped = wrapTextWithAnsi(label, contentWidth);
+		if (!isOptionItem) {
+			const wrapped = wrapTextWithAnsi(label, contentWidth);
+			return wrapped.map((segment, index) => {
+				const prefix = index === 0 ? rowPrefix : continuationPrefix;
+				const line = `${prefix}${segment}`;
+				return applySelectedStyle ? this.theme.selectedText(line) : line;
+			});
+		}
+
+		const hasConfirmedMark = label.endsWith(WrappingSelect.CONFIRMED_MARK);
+		const rawText = hasConfirmedMark ? label.slice(0, -WrappingSelect.CONFIRMED_MARK.length) : label;
+
+		const { cleanLabel, isRecommended, badgeText } = parseOptionLabel(rawText);
+
+		const proseStyle = applySelectedStyle ? this.theme.selectedText : (s: string) => s;
+		const codeStyle = (c: string) =>
+			this.theme.codeText ? this.theme.codeText(c, applySelectedStyle) : proseStyle(c);
+		const badgeStyle = this.theme.recommendedBadge ?? ((b: string) => b);
+
+		let formatted = formatInlineCode(cleanLabel, proseStyle, codeStyle);
+		if (isRecommended && badgeText) {
+			formatted += `  ${badgeStyle(badgeText)}`;
+		}
+		if (hasConfirmedMark) {
+			const mark = WrappingSelect.CONFIRMED_MARK;
+			formatted += applySelectedStyle
+				? this.theme.selectedText(mark)
+				: (this.theme.recommendedBadge ? this.theme.recommendedBadge(mark) : mark);
+		}
+
+		const wrapped = wrapTextWithAnsi(formatted, contentWidth);
 		return wrapped.map((segment, index) => {
 			const prefix = index === 0 ? rowPrefix : continuationPrefix;
-			const line = `${prefix}${segment}`;
-			return applySelectedStyle ? this.theme.selectedText(line) : line;
+			const styledPrefix = applySelectedStyle ? this.theme.selectedText(prefix) : prefix;
+			return `${styledPrefix}${segment}`;
 		});
 	}
 
@@ -291,7 +325,11 @@ export class WrappingSelect implements Component {
 		contentWidth: number,
 	): string[] {
 		if (!description) return [];
-		const wrapped = wrapTextWithAnsi(description, contentWidth);
-		return wrapped.map((segment) => `${continuationPrefix}${this.theme.description(segment)}`);
+		const proseStyle = this.theme.description;
+		const codeStyle = (c: string) =>
+			this.theme.codeText ? this.theme.codeText(c, false) : proseStyle(c);
+		const formatted = formatInlineCode(description, proseStyle, codeStyle);
+		const wrapped = wrapTextWithAnsi(formatted, contentWidth);
+		return wrapped.map((segment) => `${continuationPrefix}${segment}`);
 	}
 }
