@@ -28,7 +28,7 @@
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { ASK_USER_QUESTION_TOOL_NAME } from "../../shared/contract.js";
-import { loadConfig, resolveCollapseKey, validateGuidanceFields } from "../../shared/config.js";
+import { loadConfig, resolveCollapseKey, resolvePreset, validateGuidanceFields } from "../../shared/config.js";
 import { emitAskUserBlockedEvent, emitAskUserPromptEvent } from "./prompt-events.js";
 // Static import is fine — rpc-fallback pulls only types + the i18n bridge,
 // none of the ~560ms TUI render graph that QuestionnaireSession lazy-loads.
@@ -43,7 +43,7 @@ import {
 } from "./session-factory.js";
 import { displayLabel, sentinelsToAppend } from "./session/row-intent.js";
 import { normalizeQuestionParams } from "./params/normalize.js";
-import { DEFAULT_PROMPT_GUIDELINES, DEFAULT_PROMPT_SNIPPET, DEFAULT_TOOL_DESCRIPTION } from "./params/prompt-copy.js";
+import { getPromptCopy } from "./params/prompt-copy.js";
 import { buildQuestionnaireResponse, buildToolResult } from "./params/envelope.js";
 import {
 	type QuestionData,
@@ -186,13 +186,16 @@ export function buildItemsForQuestion(question: QuestionData): WrappingSelectIte
 }
 
 export function registerAskUserQuestion(pi: ExtensionAPI): () => void {
-	const guidance = validateGuidanceFields(loadConfig().guidance);
+	const config = loadConfig();
+	const preset = resolvePreset(config);
+	const promptCopy = getPromptCopy(preset);
+	const guidance = validateGuidanceFields(config.guidance);
 	pi.registerTool({
 		name: ASK_USER_QUESTION_TOOL_NAME,
 		label: "Ask User Question",
-		description: guidance.description ?? DEFAULT_TOOL_DESCRIPTION,
-		promptSnippet: guidance.promptSnippet ?? DEFAULT_PROMPT_SNIPPET,
-		promptGuidelines: guidance.promptGuidelines ?? DEFAULT_PROMPT_GUIDELINES,
+		description: guidance.description ?? promptCopy.description,
+		promptSnippet: guidance.promptSnippet ?? promptCopy.promptSnippet,
+		promptGuidelines: guidance.promptGuidelines ?? promptCopy.promptGuidelines,
 		parameters: QuestionParamsSchema,
 
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {

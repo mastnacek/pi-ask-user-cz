@@ -7,7 +7,15 @@ export type CollapseKeySpec = string;
 export const DEFAULT_COLLAPSE_KEY: CollapseKeySpec = "ctrl+]";
 export const COLLAPSE_KEY_OFF: CollapseKeySpec = "off";
 
+export type GuidancePreset = "concise" | "legacy";
+
 export interface AskUserQuestionConfig {
+	/**
+	 * Prompt copy style:
+	 * - "concise" (default): lean prompt (~215 words) with positive framing & asking-well skill.
+	 * - "legacy": original verbose prompt (567 words) with strict rule listings.
+	 */
+	preset?: GuidancePreset;
 	guidance?: GuidanceFields;
 	/**
 	 * Key spec for the collapse/expand shortcut, in the same format as pi-coding-agent
@@ -59,6 +67,11 @@ function isValidCollapseKeySpec(spec: string): boolean {
 	if (modifiers.length !== new Set(modifiers).size) return false;
 	if (!modifiers.every((m) => MODIFIERS.has(m))) return false;
 	return base.length === 1 ? /[a-z0-9_\-!@#$%^&*()|~`'":;,./<>?[\]{}=\\]/.test(base) : SPECIAL_KEYS.has(base);
+}
+
+export function resolvePreset(config: Pick<AskUserQuestionConfig, "preset">): GuidancePreset {
+	const raw = config.preset?.trim().toLowerCase();
+	return raw === "legacy" ? "legacy" : "concise";
 }
 
 export function resolveCollapseKey(config: Pick<AskUserQuestionConfig, "collapseKey">): CollapseKeySpec {
