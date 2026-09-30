@@ -3,3 +3,4 @@ node_modules/
 # Created by the spai tooling when a session runs with this directory as cwd.
 # Not part of the published package.
 docs/spai/
+package-lock.json
