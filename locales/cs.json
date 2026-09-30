@@ -1,0 +1,34 @@
+{
+  "sentinel.other": "Napište vlastní.",
+  "sentinel.next": "Další",
+
+  "submit.label": "Odeslat odpovědi",
+  "submit.cancel": "Zrušit",
+
+  "hint.enter": "Enter pro výběr",
+  "hint.navigate": "↑/↓ pro pohyb",
+  "hint.newline": "Shift+Enter pro nový řádek",
+  "hint.clear": "Ctrl+U pro smazání",
+  "hint.toggle": "Mezerník pro přepnutí",
+  "hint.notes": "n pro přidání poznámky",
+  "hint.tab": "Tab pro přepnutí otázky",
+  "hint.collapse": "{key} pro sbalení",
+  "hint.expand_line": "{key} pro rozbalení · Esc pro zrušení",
+  "hint.cancel": "Esc pro zrušení",
+
+  "review.heading": "Zkontrolujte své odpovědi",
+  "review.ready": "Odeslat odpovědi?",
+  "review.incomplete": "⚠ Před odesláním odpovězte na zbývající otázky:",
+  "review.global_hint": "n pro přidání poznámky",
+  "review.note_label": "Poznámka",
+
+  "preview.no_preview": "Náhled není k dispozici",
+  "preview.notes_affordance": "Poznámky: stiskněte n pro přidání poznámky",
+  "notes.header": "Poznámky:",
+  "notes.global_header": "Celková poznámka:",
+
+  "editor.failed": "Externí editor selhal",
+
+  "rpc.multi_instructions": "Zadejte čísla všech použitelných možností oddělená čárkou (např. \"1,3\"), nebo napište vlastní odpověď.",
+  "rpc.custom_answer_title": "Napište svou odpověď:"
+}
