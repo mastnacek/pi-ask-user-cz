@@ -26,6 +26,7 @@
 		"src/shared/config.ts",
 		"src/shared/contract.ts",
 		"src/shared/i18n.ts",
+		"src/slices/commands/index.ts",
 		"src/slices/questionnaire/params/envelope.ts",
 		"src/slices/questionnaire/params/format.ts",
 		"src/slices/questionnaire/params/normalize.ts",

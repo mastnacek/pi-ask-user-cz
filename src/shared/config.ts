@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname, join } from "node:path";
 import type { GuidanceFields } from "./config-source.js";
 import { loadJsonConfigWithLegacyFallback, validateGuidanceFields } from "./config-source.js";
 
@@ -106,8 +109,64 @@ export function formatKeySpecForDisplay(spec: CollapseKeySpec): string {
 		.join("+");
 }
 
-export function loadConfig(): AskUserQuestionConfig {
-	return loadJsonConfigWithLegacyFallback<AskUserQuestionConfig>("pi-ask-user-cz");
+const CONFIG_DIR = join(homedir(), ".pi", "agent");
+export const GLOBAL_CONFIG_FILE = join(CONFIG_DIR, "pi-ask-user-cz.json");
+
+/** Project override: <cwd>/.pi/pi-ask-user-cz.json (wins over the global file). */
+export function projectConfigPath(cwd: string): string {
+	return join(cwd, ".pi", "pi-ask-user-cz.json");
+}
+
+function readLayer(path: string): Partial<AskUserQuestionConfig> {
+	try {
+		if (existsSync(path)) {
+			return JSON.parse(readFileSync(path, "utf8")) as Partial<AskUserQuestionConfig>;
+		}
+	} catch {
+		// Corrupt or unreadable layer — return empty.
+	}
+	return {};
+}
+
+export function loadConfig(cwd?: string): AskUserQuestionConfig {
+	const legacyGlobal = loadJsonConfigWithLegacyFallback<AskUserQuestionConfig>("pi-ask-user-cz");
+	const globalLayer = readLayer(GLOBAL_CONFIG_FILE);
+	const fromGlobal = { ...legacyGlobal, ...globalLayer };
+	if (!cwd) return fromGlobal;
+	const projectLayer = readLayer(projectConfigPath(cwd));
+	return { ...fromGlobal, ...projectLayer };
+}
+
+/**
+ * Persist a patch: `--global` (isGlobal) writes ~/.pi/agent/, otherwise the
+ * project file under <cwd>/.pi/. Without a cwd the global file is the target.
+ */
+export function saveConfig(
+	patch: Partial<AskUserQuestionConfig>,
+	isGlobal = false,
+	cwd?: string,
+): void {
+	const target = isGlobal || !cwd ? GLOBAL_CONFIG_FILE : projectConfigPath(cwd);
+	try {
+		mkdirSync(dirname(target), { recursive: true });
+		const layer = readLayer(target);
+		const tmp = `${target}.tmp`;
+		writeFileSync(tmp, JSON.stringify({ ...layer, ...patch }, null, 2), "utf8");
+		renameSync(tmp, target);
+
+		// If saving globally, also keep legacy ~/.config/pi-ask-user-cz/config.json in sync
+		if (isGlobal || !cwd) {
+			const xdgDir = process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config", "pi-ask-user-cz");
+			mkdirSync(xdgDir, { recursive: true });
+			writeFileSync(join(xdgDir, "config.json"), JSON.stringify({ ...layer, ...patch }, null, 2), "utf8");
+		}
+	} catch {
+		try {
+			rmSync(`${target}.tmp`, { force: true });
+		} catch {
+			// Ignore cleanup error.
+		}
+	}
 }
 
 export { validateGuidanceFields };

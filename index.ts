@@ -18,6 +18,7 @@
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { registerAskUserQuestion, startSessionGraphPrewarm } from "./src/slices/questionnaire/index.js";
 import { registerAskUserQuestionReconciler } from "./src/slices/reconcile/index.js";
+import { registerAskUserCommand } from "./src/slices/commands/index.js";
 
 export {
 	ASK_USER_BLOCKED_EVENT,
@@ -39,6 +40,7 @@ export default function (pi: ExtensionAPI) {
 
 	// Wire order: tools, then lifecycle reconciliation, then the drain. Each
 	// registration returns its own unsubscriber.
+	registerAskUserCommand(pi);
 	const dispose: (() => void)[] = [registerAskUserQuestion(pi), registerAskUserQuestionReconciler(pi)];
 
 	// The lazy render graph is warmed from `session_start`, never from the factory:
